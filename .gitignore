@@ -4,6 +4,7 @@ parser.c*
 parser
 scanner.c*
 *.hh
+test/result
 
 docker/.history
 .bash_history

@@ -27,3 +27,7 @@ const char *PType::getPTypeCString() const {
 
     return type_string.c_str();
 }
+
+const std::vector<uint64_t> PType::getDimensions() const {
+    return dimensions;
+}

@@ -1,13 +1,13 @@
 #include "AST/function.hpp"
-#include "visitor/AstNodeVisitor.hpp"
 
 #include <cassert>
+
+#include "visitor/AstNodeVisitor.hpp"
 
 FunctionNode::FunctionNode(const uint32_t line, const uint32_t col,
                            const char *p_name, Decls *p_parameters,
                            const PType *p_type, CompoundStatementNode *p_body)
-    : AstNode{line, col}, name(p_name), parameters(std::move(*p_parameters)),
-      return_type(PTypeSharedPtr(p_type)), body(p_body) {}
+    : AstNode{line, col}, name(p_name), parameters(std::move(*p_parameters)), return_type(PTypeSharedPtr(p_type)), body(p_body) {}
 
 const char *FunctionNode::getNameCString() const { return name.c_str(); }
 
@@ -37,6 +37,26 @@ const char *FunctionNode::getPrototypeCString() const {
     }
 
     return prototype_string.c_str();
+}
+
+const char *FunctionNode::getParameterCString() const {
+    if (!parameter_string_is_valid) {
+        for (const auto &parameter : parameters) {
+            for (const auto &var : parameter->variables()) {
+                parameter_string += var->getTypeCString();
+                parameter_string += ", ";
+            }
+        }
+        if (!parameters.empty()) {
+            // remove the trailing ", "
+            parameter_string.pop_back();
+            parameter_string.pop_back();
+        }
+
+        parameter_string_is_valid = true;
+    }
+
+    return parameter_string.c_str();
 }
 
 bool FunctionNode::isDefined() const { return (body) ? true : false; }

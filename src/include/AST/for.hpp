@@ -18,6 +18,10 @@ class ForNode : public AstNode {
 
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;
+    void visitBodyNode(AstNodeVisitor& p_visitor);
+    const ConstantValueNode& getLoopBeginNode() const;
+    const ConstantValueNode& getLoopEndNode() const;
+    const VariableNode& getLoopVarNode() const;
 
   private:
     std::unique_ptr<DeclNode> var_decl;

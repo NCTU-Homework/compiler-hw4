@@ -1,18 +1,18 @@
 #ifndef __AST_DECL_NODE_H
 #define __AST_DECL_NODE_H
 
+#include <memory>
+#include <vector>
+
 #include "AST/ConstantValue.hpp"
 #include "AST/ast.hpp"
 #include "AST/utils.hpp"
 #include "AST/variable.hpp"
 
-#include <memory>
-#include <vector>
-
 class PType;
 
 class DeclNode : public AstNode {
-  public:
+   public:
     typedef std::vector<std::unique_ptr<VariableNode>> VarNodes;
 
     // variable declaration
@@ -31,7 +31,7 @@ class DeclNode : public AstNode {
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;
 
-  private:
+   private:
     VarNodes vars;
 };
 

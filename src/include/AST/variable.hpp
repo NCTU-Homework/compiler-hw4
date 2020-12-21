@@ -19,6 +19,9 @@ class VariableNode : public AstNode {
 
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;
+    bool isConstant() const;
+    const char* getConstantValue() const;
+    const PType& getType() const;
 
   private:
     const std::string name;

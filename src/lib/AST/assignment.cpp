@@ -14,3 +14,7 @@ void AssignmentNode::visitChildNodes(AstNodeVisitor &p_visitor) {
     lvalue->accept(p_visitor);
     expr->accept(p_visitor);
 }
+
+const ExpressionNode& AssignmentNode::getRightNode() const {
+    return *expr;
+}

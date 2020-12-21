@@ -774,11 +774,21 @@ int main(int argc, const char *argv[]) {
     SemanticAnalyzer analyzer;
     root->accept(analyzer);
 
-    printf("\n"
-           "|--------------------------------|\n"
-           "|  There is no syntactic error!  |\n"
-           "|--------------------------------|\n");
-
+    const std::vector<SemanticError>& result = analyzer.result;
+    if (result.empty()) {
+        printf("\n"
+            "|---------------------------------------------------|\n"
+            "|  There is no syntactic error and semantic error!  |\n"
+            "|---------------------------------------------------|\n");
+    } else {
+        for (const SemanticError& e: result) {
+            printf("<Error> Found in line %d, column %d: %s\n", e.location.line, e.location.col, e.errorMsg.c_str());
+            // TODO show contents
+            // printf("    %s", e.location.line, e.location.col, e.errorMsg);
+            // for (int i=1; i<4+e.col; i++) printf(" ");
+            // printf("^\n");
+        }
+    }
     delete root;
     fclose(yyin);
     yylex_destroy();

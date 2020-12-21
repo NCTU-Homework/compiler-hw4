@@ -1,10 +1,68 @@
 #ifndef __SEMA_SEMANTIC_ANALYZER_H
 #define __SEMA_SEMANTIC_ANALYZER_H
 
+#include <string>
+#include <unordered_set>
+#include <vector>
+
+#include "AST/ast.hpp"
 #include "visitor/AstNodeVisitor.hpp"
 
+enum p_symbol_kind {
+    PK_PROGRAM,
+    PK_FUNTION,
+    PK_PARAMETER,
+    PK_VARIABLE,
+    PK_LOOP_VAR,
+    PK_CONSTANT,
+    PK_UNKNOWN
+};
+
+class SymbolTableRow {
+   private:
+    std::string name;
+    p_symbol_kind kind;
+    int level;
+    std::string type;
+    std::string attribute;
+    Location location;
+
+   public:
+    SymbolTableRow(const char *_name, p_symbol_kind _kind, int _level,
+                   const char *_type, const char *_attr,
+                   const Location &_location);
+    ~SymbolTableRow() = default;
+    const char *getName() const;
+    const char *getKind() const;
+    const int &getLevel() const;
+    const char *getType() const;
+    const char *getAttribute() const;
+    const Location& getLocation() const;
+
+    void setAttribute(const char *);
+    void setKind(p_symbol_kind);
+};
+
+class SymbolTable {
+   private:
+    std::unordered_set<std::string> key_set;
+    std::vector<SymbolTableRow> rows;
+
+   public:
+    std::vector<SymbolTableRow> &getContent();
+    const std::vector<SymbolTableRow> &getContent() const;
+    std::unordered_set<std::string> &getKeySet();
+    const std::unordered_set<std::string>& getKeySet() const;
+    void print() const;
+};
+
+struct SemanticError {
+    Location location;
+    std::string errorMsg;
+};
+
 class SemanticAnalyzer : public AstNodeVisitor {
-  public:
+   public:
     SemanticAnalyzer() = default;
     ~SemanticAnalyzer() = default;
 
@@ -26,9 +84,29 @@ class SemanticAnalyzer : public AstNodeVisitor {
     void visit(ForNode &p_for) override;
     void visit(ReturnNode &p_return) override;
 
-  private:
-    // TODO: something like symbol manager (manage symbol tables)
-    //       context manager, return type manager
+    void push();
+    void pop();
+    void reserve(const char *keyName);
+    void release(const char *keyName);
+    void insert(const SymbolTableRow &row);
+    void stashRow();
+    void popRow();
+    SymbolTableRow &topRow();
+    void preserveLevel();
+
+    SymbolTable &top();
+    const SymbolTable &top() const;
+
+    std::vector<SemanticError> result;
+
+   private:
+    std::vector<SymbolTable *> effectiveTableStack;
+    std::vector<SymbolTable *> tableStack;
+    std::vector<SymbolTableRow *> tableRowStack;
+    std::unordered_set<std::string> reserved;
+    p_symbol_kind currentScopeKind;
+    int currentLevel = -1;
+    int levelPreserved = 0;
 };
 
 #endif

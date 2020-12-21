@@ -21,3 +21,15 @@ void VariableNode::visitChildNodes(AstNodeVisitor &p_visitor) {
         constant->accept(p_visitor);
     }
 }
+
+bool VariableNode::isConstant() const {
+    return constant != nullptr;
+}
+
+const char* VariableNode::getConstantValue() const {
+    return constant->getConstantValueCString();
+}
+
+const PType& VariableNode::getType() const {
+    return *type;
+}
