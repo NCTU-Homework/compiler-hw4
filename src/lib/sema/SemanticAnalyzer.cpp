@@ -24,14 +24,14 @@ void SemanticAnalyzer::visit(ProgramNode &p_program) {
             currentLevel,
             p_program.getType(),
             "",
-            p_program.getLocation()});
+            p_program.getLocation(),
+            true});
 
     // 3.
-    currentScopeKind = PK_UNKNOWN;
+    currentScopeKind = PK_ERR;
+    beginProcedure(p_program.getType());
     p_program.visitChildNodes(*this);
-
-    // 4.
-    // TODO
+    endProcedure();
 
     // 5.
     endScope();
@@ -55,6 +55,7 @@ void SemanticAnalyzer::visit(VariableNode &p_variable) {
      */
 
     // If is array then length must be positive
+    bool ok = 1;
     for (int len : p_variable.getType().getDimensions()) {
         if (len <= 0) {
             std::string msg = "'";
@@ -62,7 +63,7 @@ void SemanticAnalyzer::visit(VariableNode &p_variable) {
             msg += "' declared as an array with an index that is not greater than 0";
             result.push_back({p_variable.getLocation(),
                               msg});
-            break;
+            ok = 0;
         }
     }
 
@@ -78,14 +79,16 @@ void SemanticAnalyzer::visit(VariableNode &p_variable) {
                 currentLevel,
                 p_variable.getType(),
                 p_variable.getConstantValue(),
-                p_variable.getLocation()});
+                p_variable.getLocation(),
+                ok});
     } else {
         insert({p_variable.getNameCString(),
                 kind,
                 currentLevel,
                 p_variable.getType(),
                 "",
-                p_variable.getLocation()});
+                p_variable.getLocation(),
+                ok});
     }
 }
 
@@ -104,7 +107,7 @@ void SemanticAnalyzer::visit(ConstantValueNode &p_constant_value) {
     //const char *val = p_constant_value.getConstantValueCString();
     //topRow().setAttribute(val);
     //topRow().setKind(PK_CONSTANT);
-    pushExpType({p_constant_value.getLocation(), *p_constant_value.getTypePtr()});
+    pushExpType({p_constant_value.getLocation(), *p_constant_value.getTypePtr(), PE_CONST});
 }
 
 void SemanticAnalyzer::visit(FunctionNode &p_function) {
@@ -123,14 +126,17 @@ void SemanticAnalyzer::visit(FunctionNode &p_function) {
             currentLevel,
             p_function.getType(),
             p_function.getPrototype(),
-            p_function.getLocation()});
+            p_function.getLocation(),
+            true});
 
     startScope();
     p_symbol_kind prevScopeKind = currentScopeKind;
     currentScopeKind = PK_FUNTION;
     preserveLevel();
 
+    beginProcedure(p_function.getType());
     p_function.visitChildNodes(*this);
+    endProcedure();
 
     currentScopeKind = prevScopeKind;
     endScope();
@@ -149,7 +155,7 @@ void SemanticAnalyzer::visit(CompoundStatementNode &p_compound_statement) {
      */
 
     p_symbol_kind tmp = currentScopeKind;
-    currentScopeKind = PK_UNKNOWN;
+    currentScopeKind = PK_ERR;
     startScope();
     p_compound_statement.visitChildNodes(*this);
     endScope();
@@ -169,6 +175,16 @@ void SemanticAnalyzer::visit(PrintNode &p_print) {
      */
 
     p_print.visitChildNodes(*this);
+
+    // Checks if type is scalar
+    ExpressionTypeInfo etype = popExpType();
+    if (etype.type.getPrimitiveType() == Prim::kUnknown) {
+        return;
+    }
+    if (etype.type.getDimensions().size() > 0 || etype.type.getPrimitiveType() == Prim::kVoidType) {
+        std::string errMsg = "expression of print statement must be scalar type";
+        result.push_back({etype.location, errMsg});
+    }
 }
 
 void SemanticAnalyzer::visit(BinaryOperatorNode &p_bin_op) {
@@ -198,7 +214,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode &p_bin_op) {
         errMsg += "')";
         result.push_back({p_bin_op.getLocation(),
                           errMsg});
-        pushExpType({p_bin_op.getLocation(), Prim::kUnknown});
+        pushExpType({p_bin_op.getLocation(), Prim::kUnknown, PE_EXPR});
     };
 
     if (letype.getDimensions().size() > 0 || retype.getDimensions().size() > 0) {
@@ -210,6 +226,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode &p_bin_op) {
     const Prim &ltype = letype.getPrimitiveType();
     // skip already described error
     if (ltype == Prim::kUnknown || rtype == Prim::kUnknown) {
+        pushExpType({p_bin_op.getLocation(), Prim::kUnknown, PE_EXPR});
         return;
     }
 
@@ -218,13 +235,13 @@ void SemanticAnalyzer::visit(BinaryOperatorNode &p_bin_op) {
         case Operator::kDivideOp:
         case Operator::kMinusOp:
             if (ltype == Prim::kRealType && rtype == Prim::kRealType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kRealType});
+                pushExpType({p_bin_op.getLocation(), Prim::kRealType, PE_EXPR});
             } else if (ltype == Prim::kRealType && rtype == Prim::kIntegerType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kRealType});
+                pushExpType({p_bin_op.getLocation(), Prim::kRealType, PE_EXPR});
             } else if (rtype == Prim::kRealType && ltype == Prim::kIntegerType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kRealType});
+                pushExpType({p_bin_op.getLocation(), Prim::kRealType, PE_EXPR});
             } else if (ltype == Prim::kIntegerType && rtype == Prim::kIntegerType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kIntegerType});
+                pushExpType({p_bin_op.getLocation(), Prim::kIntegerType, PE_EXPR});
             } else {
                 gg();
             }
@@ -236,35 +253,35 @@ void SemanticAnalyzer::visit(BinaryOperatorNode &p_bin_op) {
         case Operator::kEqualOp:
         case Operator::kNotEqualOp:
             if (ltype == Prim::kRealType && rtype == Prim::kRealType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kBoolType});
+                pushExpType({p_bin_op.getLocation(), Prim::kBoolType, PE_EXPR});
             } else if (ltype == Prim::kRealType && rtype == Prim::kIntegerType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kBoolType});
+                pushExpType({p_bin_op.getLocation(), Prim::kBoolType, PE_EXPR});
             } else if (rtype == Prim::kRealType && ltype == Prim::kIntegerType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kBoolType});
+                pushExpType({p_bin_op.getLocation(), Prim::kBoolType, PE_EXPR});
             } else if (ltype == Prim::kIntegerType && rtype == Prim::kIntegerType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kBoolType});
+                pushExpType({p_bin_op.getLocation(), Prim::kBoolType, PE_EXPR});
             } else {
                 gg();
             }
             break;
         case Operator::kPlusOp:
             if (ltype == Prim::kRealType && rtype == Prim::kRealType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kRealType});
+                pushExpType({p_bin_op.getLocation(), Prim::kRealType, PE_EXPR});
             } else if (ltype == Prim::kRealType && rtype == Prim::kIntegerType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kRealType});
+                pushExpType({p_bin_op.getLocation(), Prim::kRealType, PE_EXPR});
             } else if (rtype == Prim::kRealType && ltype == Prim::kIntegerType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kRealType});
+                pushExpType({p_bin_op.getLocation(), Prim::kRealType, PE_EXPR});
             } else if (ltype == Prim::kIntegerType && rtype == Prim::kIntegerType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kIntegerType});
+                pushExpType({p_bin_op.getLocation(), Prim::kIntegerType, PE_EXPR});
             } else if (ltype == Prim::kStringType && rtype == Prim::kStringType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kStringType});
+                pushExpType({p_bin_op.getLocation(), Prim::kStringType, PE_EXPR});
             } else {
                 gg();
             }
             break;
         case Operator::kModOp:
             if (ltype == Prim::kIntegerType && rtype == Prim::kIntegerType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kIntegerType});
+                pushExpType({p_bin_op.getLocation(), Prim::kIntegerType, PE_EXPR});
             } else {
                 gg();
             }
@@ -273,7 +290,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode &p_bin_op) {
         case Operator::kOrOp:
         case Operator::kNotOp:
             if (ltype == Prim::kBoolType && rtype == Prim::kBoolType) {
-                pushExpType({p_bin_op.getLocation(), Prim::kBoolType});
+                pushExpType({p_bin_op.getLocation(), Prim::kBoolType, PE_EXPR});
             } else {
                 gg();
             }
@@ -300,16 +317,14 @@ void SemanticAnalyzer::visit(UnaryOperatorNode &p_un_op) {
 
     PType ptype = popExpType().type;
     auto gg = [&]() {
-        std::string errMsg = "invalid operands to binary operator '";
+        std::string errMsg = "invalid operand to unary operator '";
         errMsg += p_un_op.getOpCString();
         errMsg += "' ('";
-        errMsg += ptype.getPTypeCString();
-        errMsg += "' and '";
         errMsg += ptype.getPTypeCString();
         errMsg += "')";
         result.push_back({p_un_op.getLocation(),
                           errMsg});
-        pushExpType({p_un_op.getLocation(), Prim::kUnknown});
+        pushExpType({p_un_op.getLocation(), Prim::kUnknown, PE_EXPR});
     };
 
     if (ptype.getDimensions().size() > 0 || ptype.getDimensions().size() > 0) {
@@ -320,22 +335,23 @@ void SemanticAnalyzer::visit(UnaryOperatorNode &p_un_op) {
     const Prim &stype = ptype.getPrimitiveType();
     // skip already described error
     if (stype == Prim::kUnknown) {
+        pushExpType({p_un_op.getLocation(), Prim::kUnknown, PE_EXPR});
         return;
     }
 
     switch (p_un_op.getOperator()) {
         case Operator::kNegOp:
             if (stype == Prim::kIntegerType) {
-                pushExpType({p_un_op.getLocation(), Prim::kIntegerType});
+                pushExpType({p_un_op.getLocation(), Prim::kIntegerType, PE_EXPR});
             } else if (stype == Prim::kRealType) {
-                pushExpType({p_un_op.getLocation(), Prim::kRealType});
+                pushExpType({p_un_op.getLocation(), Prim::kRealType, PE_EXPR});
             } else {
                 gg();
             }
             break;
         case Operator::kNotOp:
             if (stype == Prim::kBoolType) {
-                pushExpType({p_un_op.getLocation(), Prim::kBoolType});
+                pushExpType({p_un_op.getLocation(), Prim::kBoolType, PE_EXPR});
             } else {
                 gg();
             }
@@ -367,19 +383,19 @@ void SemanticAnalyzer::visit(FunctionInvocationNode &p_func_invocation) {
         msg += "'";
         result.push_back({p_func_invocation.getLocation(),
                           msg});
-        pushExpType({p_func_invocation.getLocation(), Prim::kUnknown});
+        pushExpType({p_func_invocation.getLocation(), Prim::kUnknown, PE_FUNC});
         return;
     }
 
     // Checks if such function is function
     const SymbolTableRow &row = reference(p_func_invocation.getNameCString());
     if (row.getKind() != PK_FUNTION) {
-        std::string msg = "use of non-function symbol '";
+        std::string msg = "call of non-function symbol '";
         msg += p_func_invocation.getNameCString();
         msg += "'";
         result.push_back({p_func_invocation.getLocation(),
                           msg});
-        pushExpType({p_func_invocation.getLocation(), Prim::kUnknown});
+        pushExpType({p_func_invocation.getLocation(), Prim::kUnknown, PE_FUNC});
         return;
     }
 
@@ -392,14 +408,14 @@ void SemanticAnalyzer::visit(FunctionInvocationNode &p_func_invocation) {
         msg += "'";
         result.push_back({p_func_invocation.getLocation(),
                           msg});
-        pushExpType({p_func_invocation.getLocation(), Prim::kUnknown});
+        pushExpType({p_func_invocation.getLocation(), Prim::kUnknown, PE_FUNC});
         return;
     }
 
     p_func_invocation.visitChildNodes(*this);
 
     // Check if argument type matches
-    std::vector<ExpressionType> args;
+    std::vector<ExpressionTypeInfo> args;
     for (int i = 0; i < paramTypes.size(); i++) {
         args.push_back(popExpType());
     }
@@ -409,7 +425,10 @@ void SemanticAnalyzer::visit(FunctionInvocationNode &p_func_invocation) {
     for (int i = 0; i < paramTypes.size(); i++) {
         PType argType = args[i].type;
         PType paramType = paramTypes[i];
-        if (argType != paramType) {
+        if (argType.getPrimitiveType() == Prim::kUnknown) {
+            // If this is solved error, omits it
+            ok = 0;
+        } else if (argType != paramType) {
             std::string msg = "incompatible type passing '";
             msg += argType.getPTypeCString();
             msg += "' to parameter of type '";
@@ -422,10 +441,9 @@ void SemanticAnalyzer::visit(FunctionInvocationNode &p_func_invocation) {
     }
 
     if (ok) {
-        pushExpType({p_func_invocation.getLocation(), row.getType()});
-    }
-    else {
-        pushExpType({p_func_invocation.getLocation(), Prim::kUnknown});
+        pushExpType({p_func_invocation.getLocation(), row.getType(), PE_FUNC});
+    } else {
+        pushExpType({p_func_invocation.getLocation(), Prim::kUnknown, PE_FUNC});
     }
 }
 
@@ -448,19 +466,26 @@ void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
         msg += "'";
         result.push_back({p_variable_ref.getLocation(),
                           msg});
-        pushExpType({p_variable_ref.getLocation(), Prim::kUnknown});
+        pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
         return;
     }
 
-    // Checks if such reference is of type varirable
     const SymbolTableRow &var = reference(p_variable_ref.getNameCString());
-    if (var.getKind() == PK_FUNTION || var.getKind() == PK_PROGRAM || var.getKind() == PK_UNKNOWN) {
+
+    // Checks if such reference is of type varirable
+    if (var.getKind() == PK_FUNTION || var.getKind() == PK_PROGRAM || var.getKind() == PK_ERR) {
         std::string msg = "use of non-variable symbol '";
         msg += p_variable_ref.getNameCString();
         msg += "'";
         result.push_back({p_variable_ref.getLocation(),
                           msg});
-        pushExpType({p_variable_ref.getLocation(), Prim::kUnknown});
+        pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
+        return;
+    }
+
+    // Checks if this varirable is declared correctly
+    if (!var.isEffective()) {
+        pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
         return;
     }
 
@@ -469,12 +494,14 @@ void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
     // Checks if array index is integer
     int arrayLen = p_variable_ref.getArrayIndicies().size();
     for (int i = 0; i < arrayLen; i++) {
-        ExpressionType et = popExpType();
-        if (et.type.getDimensions().size() > 0 || et.type.getPrimitiveType() != Prim::kIntegerType) {
+        ExpressionTypeInfo et = popExpType();
+        if (et.type.getPrimitiveType() == Prim::kUnknown) {
+            pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
+        } else if (et.type.getDimensions().size() > 0 || et.type.getPrimitiveType() != Prim::kIntegerType) {
             std::string errMsg = "index of array reference must be an integer";
             result.push_back({et.location,
                               errMsg});
-            pushExpType({p_variable_ref.getLocation(), Prim::kUnknown});
+            pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
             return;
         }
     }
@@ -487,7 +514,7 @@ void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
         errMsg += "'";
         result.push_back({p_variable_ref.getLocation(),
                           errMsg});
-        pushExpType({p_variable_ref.getLocation(), Prim::kUnknown});
+        pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
         return;
     }
 
@@ -497,7 +524,7 @@ void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
     const std::vector<uint64_t> newdim(dim.begin() + arrayLen, dim.end());
     PType newType(type.getPrimitiveType());
     newType.setDimensions(newdim);
-    pushExpType({p_variable_ref.getLocation(), newType});
+    pushExpType({p_variable_ref.getLocation(), newType, PE_VAR});
 }
 
 void SemanticAnalyzer::visit(AssignmentNode &p_assignment) {
@@ -513,6 +540,70 @@ void SemanticAnalyzer::visit(AssignmentNode &p_assignment) {
      */
 
     p_assignment.visitChildNodes(*this);
+
+    ExpressionTypeInfo rtype = popExpType();
+    ExpressionTypeInfo ltype = popExpType();
+    if (ltype.type == Prim::kUnknown) {
+        return;
+    }
+
+    const VariableReferenceNode &lnode = p_assignment.getLeftNode();
+    const ExpressionNode &rnode = p_assignment.getRightNode();
+
+    // array assignment is not allowed
+    if (ltype.type.getDimensions().size() > 0) {
+        result.push_back({ltype.location,
+                          "array assignment is not allowed"});
+        return;
+    }
+
+    // cannot assign to variable '{symbol_name}' which is a constant
+    const char *key = lnode.getNameCString();
+    assert(refer(key));
+    const SymbolTableRow &row = reference(key);
+    if (row.getKind() == PK_CONSTANT) {
+        std::string errMsg = "cannot assign to variable '";
+        errMsg += key;
+        errMsg += "' which is a constant";
+        result.push_back({ltype.location, errMsg});
+        return;
+    }
+
+    // The variable reference cannot be a reference to a loop variable when
+    // the context is within a loop body.
+    if (row.getKind() == PK_LOOP_VAR) {
+        result.push_back({ltype.location,
+                          "the value of loop variable cannot be modified inside the loop body"});
+        return;
+    }
+
+    // The type of the result of the expression cannot be an array type
+    if (rtype.type.getDimensions().size() > 0) {
+        result.push_back({rtype.location, "array assignment is not allowed"});
+        return;
+    }
+
+    // The type of the variable reference (lvalue) must be the same as the one
+    // of the expression after appropriate type coercion.
+    Prim lptype = ltype.type.getPrimitiveType();
+    Prim rptype = rtype.type.getPrimitiveType();
+    auto gg = [&]() {
+        std::string errMsg = "assigning to '";
+        errMsg += ltype.type.getPTypeCString();
+        errMsg += "' from incompatible type '";
+        errMsg += rtype.type.getPTypeCString();
+        errMsg += "'";
+        result.push_back({p_assignment.getLocation(),
+                          errMsg});
+    };
+    if (ltype.type != rtype.type) {
+        if (lptype == Prim::kRealType && rptype == Prim::kIntegerType) {
+            // safe
+        } else {
+            gg();
+            return;
+        }
+    }
 }
 
 void SemanticAnalyzer::visit(ReadNode &p_read) {
@@ -528,6 +619,24 @@ void SemanticAnalyzer::visit(ReadNode &p_read) {
      */
 
     p_read.visitChildNodes(*this);
+
+    // Checks if type is scalar
+    ExpressionTypeInfo etype = popExpType();
+    if (etype.type.getPrimitiveType() == Prim::kUnknown) {
+        return;
+    }
+    if (etype.type.getDimensions().size() > 0) {
+        std::string errMsg = "variable reference of read statement must be scalar type";
+        result.push_back({etype.location, errMsg});
+    }
+
+    const char *key = p_read.getVarRefNameCString();
+    assert(refer(key));
+    const SymbolTableRow &row = reference(key);
+    if (row.getKind() == PK_CONSTANT || row.getKind() == PK_LOOP_VAR || row.getKind() == PK_ERR) {
+        std::string errMsg = "variable reference of read statement cannot be a constant or loop variable";
+        result.push_back({etype.location, errMsg});
+    }
 }
 
 void SemanticAnalyzer::visit(IfNode &p_if) {
@@ -543,6 +652,16 @@ void SemanticAnalyzer::visit(IfNode &p_if) {
      */
 
     p_if.visitChildNodes(*this);
+    ExpressionTypeInfo et = popExpType();
+    if (et.type.getPrimitiveType() == Prim::kUnknown) {
+        return;
+    }
+
+    if (et.type.getDimensions().size() > 0 || et.type.getPrimitiveType() != Prim::kBoolType) {
+        result.push_back({et.location,
+                          "the expression of condition must be boolean type"});
+        return;
+    }
 }
 
 void SemanticAnalyzer::visit(WhileNode &p_while) {
@@ -574,12 +693,25 @@ void SemanticAnalyzer::visit(ForNode &p_for) {
 
     startScope();
     const VariableNode &varNode = p_for.getLoopVarNode();
+
+    bool ok = 1;
+    // The initial value of the loop variable and the constant value of the
+    // condition must be in the incremental order
+    int l = p_for.getLoopBeginBound();
+    int r = p_for.getLoopEndBound();
+    if (r <= l) {
+        result.push_back({p_for.getLocation(),
+                          "the lower bound and upper bound of iteration count must be in the incremental order"});
+        ok = 0;
+    }
+
     insert({varNode.getNameCString(),
             PK_LOOP_VAR,
             currentLevel,
             PType(PType::PrimitiveTypeEnum::kIntegerType),
             "",
-            varNode.getLocation()});
+            varNode.getLocation(),
+            ok});
     reserve(varNode.getNameCString());
 
     p_for.visitBodyNode(*this);
@@ -601,6 +733,27 @@ void SemanticAnalyzer::visit(ReturnNode &p_return) {
      */
 
     p_return.visitChildNodes(*this);
+
+    ExpressionTypeInfo et = popExpType();
+    if (et.type.getPrimitiveType() == Prim::kUnknown) {
+        return;
+    }
+
+    PType proctype = currentProcedureType();
+    if (et.type != proctype) {
+        if (proctype.getPrimitiveType() == Prim::kVoidType) {
+            result.push_back({p_return.getLocation(),
+                              "program/procedure should not return a value"});
+        } else {
+            std::string errMsg = "return '";
+            errMsg += et.type.getPTypeCString();
+            errMsg += "' from a function with return type '";
+            errMsg += proctype.getPTypeCString();
+            errMsg += "'";
+            result.push_back({et.location, errMsg});
+        }
+        return;
+    }
 }
 
 void SemanticAnalyzer::startScope() {
@@ -692,13 +845,27 @@ bool SemanticAnalyzer::refer(const char *key) const {
     return false;
 }
 
-void SemanticAnalyzer::pushExpType(const ExpressionType &type) {
+void SemanticAnalyzer::pushExpType(const ExpressionTypeInfo &type) {
     expTypeStack.push_back(type);
 }
 
-ExpressionType SemanticAnalyzer::popExpType() {
+const PType &SemanticAnalyzer::currentProcedureType() const {
+    assert(!procTypeStack.empty());
+    return procTypeStack.back();
+}
+
+void SemanticAnalyzer::beginProcedure(const PType &type) {
+    procTypeStack.push_back(type);
+}
+
+void SemanticAnalyzer::endProcedure() {
+    assert(!procTypeStack.empty());
+    procTypeStack.pop_back();
+}
+
+ExpressionTypeInfo SemanticAnalyzer::popExpType() {
     assert(!expTypeStack.empty());
-    ExpressionType ret = expTypeStack.back();
+    ExpressionTypeInfo ret = expTypeStack.back();
     expTypeStack.pop_back();
     return ret;
 }
@@ -778,11 +945,16 @@ void SymbolTable::print() const {
 SymbolTableRow::SymbolTableRow(const char *_name, p_symbol_kind _kind,
                                int _level, const PType &_type,
                                const AttributeContent &_attr,
-                               const Location &_location)
-    : name(_name), kind(_kind), level(_level), type(_type), attribute(_attr), location(_location) {}
+                               const Location &_location,
+                               bool _eff)
+    : name(_name), kind(_kind), level(_level), type(_type), attribute(_attr), location(_location), effective(_eff) {}
 
 const char *SymbolTableRow::getName() const {
     return name.c_str();
+}
+
+const bool &SymbolTableRow::isEffective() const {
+    return effective;
 }
 
 const int &SymbolTableRow::getLevel() const { return level; }

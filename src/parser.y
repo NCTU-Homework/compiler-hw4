@@ -21,6 +21,8 @@
 #include "AST/AstDumper.hpp"
 #include "sema/SemanticAnalyzer.hpp"
 
+#include <fstream>
+#include <vector>
 #include <cassert>
 #include <cstdlib>
 #include <cstdint>
@@ -771,6 +773,16 @@ int main(int argc, const char *argv[]) {
         AstDumper dumper;
         root->accept(dumper);
     }
+
+    std::vector<std::string> srclines;
+    std::ifstream ifs;
+    ifs.open(argv[1]);
+    while (!ifs.eof()) {
+        std::string line;
+        std::getline(ifs, line);
+        srclines.push_back(line);
+    }
+    
     SemanticAnalyzer analyzer;
     root->accept(analyzer);
 
@@ -782,11 +794,11 @@ int main(int argc, const char *argv[]) {
             "|---------------------------------------------------|\n");
     } else {
         for (const SemanticError& e: result) {
-            printf("<Error> Found in line %d, column %d: %s\n", e.location.line, e.location.col, e.errorMsg.c_str());
+            fprintf(stderr, "<Error> Found in line %u, column %u: %s\n", e.location.line, e.location.col, e.errorMsg.c_str());
             // TODO show contents
-            // printf("    %s", e.location.line, e.location.col, e.errorMsg);
-            // for (int i=1; i<4+e.col; i++) printf(" ");
-            // printf("^\n");
+            fprintf(stderr, "    %s\n", srclines[e.location.line - 1].c_str());
+            for (int i=1; i<4+e.location.col; i++) fprintf(stderr, " ");
+            fprintf(stderr, "^\n");
         }
     }
     delete root;

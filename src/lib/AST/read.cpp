@@ -1,4 +1,5 @@
 #include "AST/read.hpp"
+
 #include "visitor/AstNodeVisitor.hpp"
 
 ReadNode::ReadNode(const uint32_t line, const uint32_t col,
@@ -9,4 +10,8 @@ void ReadNode::accept(AstNodeVisitor &p_visitor) { p_visitor.visit(*this); }
 
 void ReadNode::visitChildNodes(AstNodeVisitor &p_visitor) {
     target->accept(p_visitor);
+}
+
+const char *ReadNode::getVarRefNameCString() const {
+    return target->getNameCString();
 }

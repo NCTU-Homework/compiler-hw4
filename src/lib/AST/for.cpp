@@ -20,14 +20,16 @@ void ForNode::visitBodyNode(AstNodeVisitor &p_visitor) {
     body->accept(p_visitor);
 }
 
-const VariableNode& ForNode::getLoopVarNode() const {
+const VariableNode &ForNode::getLoopVarNode() const {
     return *var_decl->variables()[0];
 }
 
-const ConstantValueNode &ForNode::getLoopBeginNode() const {
-    return (ConstantValueNode &)(initial_statement->getRightNode());
+int ForNode::getLoopBeginBound() const {
+    ConstantValueNode &node = (ConstantValueNode &)(initial_statement->getRightNode());
+    return atoi(node.getConstantValueCString());
 }
 
-const ConstantValueNode &ForNode::getLoopEndNode() const {
-    return *condition;
+int ForNode::getLoopEndBound() const {
+    ConstantValueNode &node = (ConstantValueNode &)*condition;
+    return atoi(node.getConstantValueCString());
 }

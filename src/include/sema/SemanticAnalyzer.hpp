@@ -16,7 +16,7 @@ enum p_symbol_kind {
     PK_VARIABLE,
     PK_LOOP_VAR,
     PK_CONSTANT,
-    PK_UNKNOWN
+    PK_ERR
 };
 
 class AttributeContent {
@@ -43,11 +43,12 @@ class SymbolTableRow {
     PType type;
     AttributeContent attribute;
     Location location;
+    bool effective;
 
    public:
     SymbolTableRow(const char *_name, p_symbol_kind _kind, int _level,
                    const PType &_type, const AttributeContent &_attr,
-                   const Location &_location);
+                   const Location &_location, bool _eff);
     ~SymbolTableRow() = default;
     const char *getName() const;
     const p_symbol_kind &getKind() const;
@@ -58,6 +59,7 @@ class SymbolTableRow {
 
     void setAttribute(const char *);
     void setKind(p_symbol_kind);
+    const bool& isEffective() const;
 };
 
 class SymbolTable {
@@ -78,9 +80,17 @@ struct SemanticError {
     std::string errorMsg;
 };
 
-struct ExpressionType {
+enum expr_source {
+    PE_EXPR,
+    PE_CONST,
+    PE_VAR,
+    PE_FUNC
+};
+
+struct ExpressionTypeInfo {
     Location location;
     PType type;
+    expr_source source;
 };
 
 class SemanticAnalyzer : public AstNodeVisitor {
@@ -122,15 +132,20 @@ class SemanticAnalyzer : public AstNodeVisitor {
     const SymbolTableRow &reference(const char *key) const;
 
     std::vector<SemanticError> result;
-    ExpressionType popExpType();
-    void pushExpType(const ExpressionType &);
+    ExpressionTypeInfo popExpType();
+    void pushExpType(const ExpressionTypeInfo &);
+
+    const PType &currentProcedureType() const;
+    void beginProcedure(const PType&);
+    void endProcedure();
 
    private:
     std::vector<SymbolTable *> effectiveTableStack;
     std::vector<SymbolTable *> tableStack;
     std::vector<SymbolTableRow *> tableRowStack;
     std::unordered_set<std::string> reserved;
-    std::vector<ExpressionType> expTypeStack;
+    std::vector<ExpressionTypeInfo> expTypeStack;
+    std::vector<PType> procTypeStack;
     p_symbol_kind currentScopeKind;
     int currentLevel = -1;
     int levelPreserved = 0;

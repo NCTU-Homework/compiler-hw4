@@ -14,6 +14,7 @@ class ReadNode : public AstNode {
 
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;
+    const char* getVarRefNameCString() const;
 
   private:
     std::unique_ptr<VariableReferenceNode> target;

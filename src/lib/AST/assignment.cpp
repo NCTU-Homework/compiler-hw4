@@ -18,3 +18,7 @@ void AssignmentNode::visitChildNodes(AstNodeVisitor &p_visitor) {
 const ExpressionNode& AssignmentNode::getRightNode() const {
     return *expr;
 }
+
+const VariableReferenceNode& AssignmentNode::getLeftNode() const {
+    return *lvalue;
+}

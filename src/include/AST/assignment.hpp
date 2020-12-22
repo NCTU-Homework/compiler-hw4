@@ -16,6 +16,7 @@ class AssignmentNode : public AstNode {
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;
     const ExpressionNode& getRightNode() const;
+    const VariableReferenceNode& getLeftNode() const;
 
   private:
     std::unique_ptr<VariableReferenceNode> lvalue;
