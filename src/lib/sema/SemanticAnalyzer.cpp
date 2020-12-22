@@ -2,22 +2,11 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 
 #include "visitor/AstNodeInclude.hpp"
 
 void SemanticAnalyzer::visit(ProgramNode &p_program) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
-    // 1.2.
     startScope();
     insert({p_program.getNameCString(),
             PK_PROGRAM,
@@ -26,16 +15,20 @@ void SemanticAnalyzer::visit(ProgramNode &p_program) {
             "",
             p_program.getLocation(),
             true});
-
-    // 3.
     currentScopeKind = PK_ERR;
     beginProcedure(p_program.getType());
     p_program.visitChildNodes(*this);
     endProcedure();
-
-    // 5.
     endScope();
-    // assert(expTypeStack.empty());
+    
+    /*assert(expTypeStack.empty());
+    assert(reserved.empty());
+    assert(tableRowStack.empty());
+    assert(effectiveTableStack.empty());
+    assert(tableStack.empty());
+    assert(procTypeStack.empty());
+    assert(currentLevel == -1);
+    assert(!levelPreserved);*/
 }
 
 void SemanticAnalyzer::visit(DeclNode &p_decl) {
@@ -43,17 +36,6 @@ void SemanticAnalyzer::visit(DeclNode &p_decl) {
 }
 
 void SemanticAnalyzer::visit(VariableNode &p_variable) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     // If is array then length must be positive
     bool ok = 1;
     for (int len : p_variable.getType().getDimensions()) {
@@ -94,34 +76,10 @@ void SemanticAnalyzer::visit(VariableNode &p_variable) {
 }
 
 void SemanticAnalyzer::visit(ConstantValueNode &p_constant_value) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
-    //const char *val = p_constant_value.getConstantValueCString();
-    //topRow().setAttribute(val);
-    //topRow().setKind(PK_CONSTANT);
     pushExpType({p_constant_value.getLocation(), *p_constant_value.getTypePtr(), PE_CONST});
 }
 
 void SemanticAnalyzer::visit(FunctionNode &p_function) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
     insert({p_function.getNameCString(),
             PK_FUNTION,
             currentLevel,
@@ -144,37 +102,17 @@ void SemanticAnalyzer::visit(FunctionNode &p_function) {
 }
 
 void SemanticAnalyzer::visit(CompoundStatementNode &p_compound_statement) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     p_symbol_kind tmp = currentScopeKind;
     currentScopeKind = PK_ERR;
     startScope();
+    int p = expTypeStack.size();
     p_compound_statement.visitChildNodes(*this);
+    while (expTypeStack.size() > p) expTypeStack.pop_back();
     endScope();
     currentScopeKind = tmp;
 }
 
 void SemanticAnalyzer::visit(PrintNode &p_print) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     p_print.visitChildNodes(*this);
 
     // Checks if type is scalar
@@ -189,17 +127,6 @@ void SemanticAnalyzer::visit(PrintNode &p_print) {
 }
 
 void SemanticAnalyzer::visit(BinaryOperatorNode &p_bin_op) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     p_bin_op.visitChildNodes(*this);
 
     PType retype = popExpType().type;
@@ -303,17 +230,6 @@ void SemanticAnalyzer::visit(BinaryOperatorNode &p_bin_op) {
 }
 
 void SemanticAnalyzer::visit(UnaryOperatorNode &p_un_op) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     p_un_op.visitChildNodes(*this);
 
     PType ptype = popExpType().type;
@@ -364,19 +280,6 @@ void SemanticAnalyzer::visit(UnaryOperatorNode &p_un_op) {
 }
 
 void SemanticAnalyzer::visit(FunctionInvocationNode &p_func_invocation) {
-    // return;
-
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     // Checks if such function reference exists
     if (!refer(p_func_invocation.getNameCString())) {
         std::string msg = "use of undeclared symbol '";
@@ -422,7 +325,7 @@ void SemanticAnalyzer::visit(FunctionInvocationNode &p_func_invocation) {
     }
     reverse(args.begin(), args.end());
 
-    int ok = 1;
+    bool ok = 1;
     for (int i = 0; i < paramTypes.size(); i++) {
         PType argType = args[i].type;
         PType paramType = paramTypes[i];
@@ -449,19 +352,6 @@ void SemanticAnalyzer::visit(FunctionInvocationNode &p_func_invocation) {
 }
 
 void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
-    p_variable_ref.visitChildNodes(*this);
-
     // Checks if the variable is already defined
     if (!refer(p_variable_ref.getNameCString())) {
         std::string msg = "use of undeclared symbol '";
@@ -480,8 +370,7 @@ void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
         std::string msg = "use of non-variable symbol '";
         msg += p_variable_ref.getNameCString();
         msg += "'";
-        result.push_back({p_variable_ref.getLocation(),
-                          msg});
+        result.push_back({p_variable_ref.getLocation(), msg});
         pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
         return;
     }
@@ -492,19 +381,25 @@ void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
         return;
     }
 
+    p_variable_ref.visitChildNodes(*this);
+    bool ok = 1;
+
     // Checks if array index is integer
     int arrayLen = p_variable_ref.getArrayIndicies().size();
     for (int i = 0; i < arrayLen; i++) {
         ExpressionTypeInfo et = popExpType();
         if (et.type.getPrimitiveType() == Prim::kUnknown) {
-            pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
+            ok = 0;
         } else if (et.type.getDimensions().size() > 0 || et.type.getPrimitiveType() != Prim::kIntegerType) {
             std::string errMsg = "index of array reference must be an integer";
-            result.push_back({et.location,
-                              errMsg});
-            pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
-            return;
+            result.push_back({et.location, errMsg});
+            ok = 0;
         }
+    }
+
+    if (!ok) {
+        pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
+        return;
     }
 
     // Checks over array subscript
@@ -513,8 +408,7 @@ void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
         std::string errMsg = "there is an over array subscript on '";
         errMsg += p_variable_ref.getNameCString();
         errMsg += "'";
-        result.push_back({p_variable_ref.getLocation(),
-                          errMsg});
+        result.push_back({p_variable_ref.getLocation(), errMsg});
         pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
         return;
     }
@@ -529,17 +423,6 @@ void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
 }
 
 void SemanticAnalyzer::visit(AssignmentNode &p_assignment) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     p_assignment.visitChildNodes(*this);
 
     ExpressionTypeInfo rtype = popExpType();
@@ -608,17 +491,6 @@ void SemanticAnalyzer::visit(AssignmentNode &p_assignment) {
 }
 
 void SemanticAnalyzer::visit(ReadNode &p_read) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     p_read.visitChildNodes(*this);
 
     // Checks if type is scalar
@@ -641,17 +513,6 @@ void SemanticAnalyzer::visit(ReadNode &p_read) {
 }
 
 void SemanticAnalyzer::visit(IfNode &p_if) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     p_if.visitChildNodes(*this);
     ExpressionTypeInfo et = popExpType();
     if (et.type.getPrimitiveType() == Prim::kUnknown) {
@@ -666,32 +527,21 @@ void SemanticAnalyzer::visit(IfNode &p_if) {
 }
 
 void SemanticAnalyzer::visit(WhileNode &p_while) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     p_while.visitChildNodes(*this);
+
+    ExpressionTypeInfo et = popExpType();
+    if (et.type.getPrimitiveType() == Prim::kUnknown) {
+        return;
+    }
+
+    if (et.type.getDimensions().size() > 0 || et.type.getPrimitiveType() != Prim::kBoolType) {
+        result.push_back({et.location,
+                          "the expression of condition must be boolean type"});
+        return;
+    }
 }
 
 void SemanticAnalyzer::visit(ForNode &p_for) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     startScope();
     const VariableNode &varNode = p_for.getLoopVarNode();
 
@@ -722,17 +572,6 @@ void SemanticAnalyzer::visit(ForNode &p_for) {
 }
 
 void SemanticAnalyzer::visit(ReturnNode &p_return) {
-    /*
-     * TODO:
-     *
-     * 1. Push a new symbol table if this node forms a scope.
-     * 2. Insert the symbol into current symbol table if this node is related to
-     *    declaration (ProgramNode, VariableNode, FunctionNode).
-     * 3. Travere child nodes of this node.
-     * 4. Perform semantic analyses of this node.
-     * 5. Pop the symbol table pushed at the 1st step.
-     */
-
     p_return.visitChildNodes(*this);
 
     ExpressionTypeInfo et = popExpType();
@@ -847,7 +686,16 @@ bool SemanticAnalyzer::refer(const char *key) const {
 }
 
 void SemanticAnalyzer::pushExpType(const ExpressionTypeInfo &type) {
+   // printf("PUSH (%d, %d)\n", type.location.line, type.location.col);
     expTypeStack.push_back(type);
+}
+
+ExpressionTypeInfo SemanticAnalyzer::popExpType() {
+    assert(!expTypeStack.empty());
+    ExpressionTypeInfo ret = expTypeStack.back();
+   // printf("POP (%d, %d)\n", ret.location.line, ret.location.col);
+    expTypeStack.pop_back();
+    return ret;
 }
 
 const PType &SemanticAnalyzer::currentProcedureType() const {
@@ -866,13 +714,6 @@ void SemanticAnalyzer::endProcedure() {
 
 void SemanticAnalyzer::displayTables() const {
     printf("%s", tableLog.c_str());
-}
-
-ExpressionTypeInfo SemanticAnalyzer::popExpType() {
-    assert(!expTypeStack.empty());
-    ExpressionTypeInfo ret = expTypeStack.back();
-    expTypeStack.pop_back();
-    return ret;
 }
 
 const SymbolTableRow &SemanticAnalyzer::reference(const char *key) const {
