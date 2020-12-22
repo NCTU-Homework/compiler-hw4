@@ -5,11 +5,11 @@
 #include "AST/ast.hpp"
 
 class ExpressionNode : public AstNode {
-  public:
+   public:
     ExpressionNode(const uint32_t line, const uint32_t col);
     ~ExpressionNode() = default;
 
-  protected:
+   protected:
     // for carrying type of result of an expression
     PTypeSharedPtr type = nullptr;
 };

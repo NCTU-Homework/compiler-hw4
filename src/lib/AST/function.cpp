@@ -39,24 +39,14 @@ const char *FunctionNode::getPrototypeCString() const {
     return prototype_string.c_str();
 }
 
-const char *FunctionNode::getParameterCString() const {
-    if (!parameter_string_is_valid) {
-        for (const auto &parameter : parameters) {
-            for (const auto &var : parameter->variables()) {
-                parameter_string += var->getTypeCString();
-                parameter_string += ", ";
-            }
+std::vector<PType> FunctionNode::getPrototype() const {
+    std::vector<PType> ret;
+    for (const auto &parameter : parameters) {
+        for (const auto &var : parameter->variables()) {
+            ret.push_back(var->getType());
         }
-        if (!parameters.empty()) {
-            // remove the trailing ", "
-            parameter_string.pop_back();
-            parameter_string.pop_back();
-        }
-
-        parameter_string_is_valid = true;
     }
-
-    return parameter_string.c_str();
+    return ret;
 }
 
 bool FunctionNode::isDefined() const { return (body) ? true : false; }
@@ -70,4 +60,8 @@ void FunctionNode::visitChildNodes(AstNodeVisitor &p_visitor) {
     if (body) {
         body->accept(p_visitor);
     }
+}
+
+const PType &FunctionNode::getType() const {
+    return *return_type;
 }

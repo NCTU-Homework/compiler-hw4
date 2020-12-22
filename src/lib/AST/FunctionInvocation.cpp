@@ -21,3 +21,7 @@ void FunctionInvocationNode::visitChildNodes(AstNodeVisitor &p_visitor) {
         argument->accept(p_visitor);
     }
 }
+
+const Exprs& FunctionInvocationNode::getArguments() const {
+    return arguments;
+}

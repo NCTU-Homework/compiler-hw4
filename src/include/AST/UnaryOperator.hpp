@@ -16,6 +16,7 @@ class UnaryOperatorNode : public ExpressionNode {
 
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;
+    const Operator& getOperator() const;
 
   private:
     Operator op;

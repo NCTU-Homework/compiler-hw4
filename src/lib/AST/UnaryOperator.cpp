@@ -16,3 +16,7 @@ void UnaryOperatorNode::accept(AstNodeVisitor &p_visitor) {
 void UnaryOperatorNode::visitChildNodes(AstNodeVisitor &p_visitor) {
     operand->accept(p_visitor);
 }
+
+const Operator& UnaryOperatorNode::getOperator() const {
+    return op;
+}

@@ -20,8 +20,10 @@ class FunctionNode : public AstNode {
 
     const char *getNameCString() const;
     const char *getTypeCString() const;
+    const PType& getType() const;
     const char *getPrototypeCString() const;
-    const char *getParameterCString() const;
+    //const char *getParameterCString() const;
+    std::vector<PType> getPrototype() const;
 
     bool isDefined() const;
 
@@ -33,9 +35,7 @@ class FunctionNode : public AstNode {
     Decls parameters;
     PTypeSharedPtr return_type;
     mutable std::string prototype_string;
-    mutable std::string parameter_string;
     mutable bool prototype_string_is_valid = false;
-    mutable bool parameter_string_is_valid = false;
     std::unique_ptr<CompoundStatementNode> body;
 };
 

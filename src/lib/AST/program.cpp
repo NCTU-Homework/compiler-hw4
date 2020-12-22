@@ -26,3 +26,5 @@ void ProgramNode::visitChildNodes(AstNodeVisitor &p_visitor) {
     }
     body->accept(p_visitor);
 }
+
+const PType& ProgramNode::getType() const { return *return_type; }

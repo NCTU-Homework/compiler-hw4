@@ -4,7 +4,7 @@ const char *kTypeString[] = {"void", "integer", "real", "boolean", "string"};
 
 PType::PType(PrimitiveTypeEnum type) : type(type) {}
 
-void PType::setDimensions(std::vector<uint64_t> &dims) {
+void PType::setDimensions(const std::vector<uint64_t> &dims) {
     dimensions = std::move(dims);
 }
 
@@ -30,4 +30,12 @@ const char *PType::getPTypeCString() const {
 
 const std::vector<uint64_t> PType::getDimensions() const {
     return dimensions;
+}
+
+bool PType::operator==(const PType &o) const {
+    return type == o.type && dimensions == o.dimensions;
+}
+
+bool PType::operator!=(const PType &o) const {
+    return !(*this == o);
 }

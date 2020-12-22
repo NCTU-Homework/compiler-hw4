@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "AST/PType.hpp"
 #include "AST/ast.hpp"
 #include "visitor/AstNodeVisitor.hpp"
 
@@ -18,26 +19,42 @@ enum p_symbol_kind {
     PK_UNKNOWN
 };
 
+class AttributeContent {
+   public:
+    bool isConstant() const;
+    const char *getContentCString() const;
+    AttributeContent(const char *);
+    AttributeContent(const std::vector<PType> &);
+    const std::vector<PType> &getTypes() const;
+
+   private:
+    bool is_const;
+    std::vector<PType> type_val;
+    mutable bool is_type_val_ready = false;
+    mutable std::string type_val_str = "";
+    std::string const_val;
+};
+
 class SymbolTableRow {
    private:
     std::string name;
     p_symbol_kind kind;
     int level;
-    std::string type;
-    std::string attribute;
+    PType type;
+    AttributeContent attribute;
     Location location;
 
    public:
     SymbolTableRow(const char *_name, p_symbol_kind _kind, int _level,
-                   const char *_type, const char *_attr,
+                   const PType &_type, const AttributeContent &_attr,
                    const Location &_location);
     ~SymbolTableRow() = default;
     const char *getName() const;
-    const char *getKind() const;
+    const p_symbol_kind &getKind() const;
     const int &getLevel() const;
-    const char *getType() const;
-    const char *getAttribute() const;
-    const Location& getLocation() const;
+    const PType &getType() const;
+    const AttributeContent &getAttribute() const;
+    const Location &getLocation() const;
 
     void setAttribute(const char *);
     void setKind(p_symbol_kind);
@@ -52,13 +69,18 @@ class SymbolTable {
     std::vector<SymbolTableRow> &getContent();
     const std::vector<SymbolTableRow> &getContent() const;
     std::unordered_set<std::string> &getKeySet();
-    const std::unordered_set<std::string>& getKeySet() const;
+    const std::unordered_set<std::string> &getKeySet() const;
     void print() const;
 };
 
 struct SemanticError {
     Location location;
     std::string errorMsg;
+};
+
+struct ExpressionType {
+    Location location;
+    PType type;
 };
 
 class SemanticAnalyzer : public AstNodeVisitor {
@@ -84,8 +106,8 @@ class SemanticAnalyzer : public AstNodeVisitor {
     void visit(ForNode &p_for) override;
     void visit(ReturnNode &p_return) override;
 
-    void push();
-    void pop();
+    void startScope();
+    void endScope();
     void reserve(const char *keyName);
     void release(const char *keyName);
     void insert(const SymbolTableRow &row);
@@ -93,17 +115,22 @@ class SemanticAnalyzer : public AstNodeVisitor {
     void popRow();
     SymbolTableRow &topRow();
     void preserveLevel();
+    SymbolTable &currentScopeTable();
+    const SymbolTable &currentScopeTable() const;
 
-    SymbolTable &top();
-    const SymbolTable &top() const;
+    bool refer(const char *key) const;
+    const SymbolTableRow &reference(const char *key) const;
 
     std::vector<SemanticError> result;
+    ExpressionType popExpType();
+    void pushExpType(const ExpressionType &);
 
    private:
     std::vector<SymbolTable *> effectiveTableStack;
     std::vector<SymbolTable *> tableStack;
     std::vector<SymbolTableRow *> tableRowStack;
     std::unordered_set<std::string> reserved;
+    std::vector<ExpressionType> expTypeStack;
     p_symbol_kind currentScopeKind;
     int currentLevel = -1;
     int levelPreserved = 0;

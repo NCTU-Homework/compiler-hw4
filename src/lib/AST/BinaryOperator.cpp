@@ -1,5 +1,7 @@
 #include "AST/BinaryOperator.hpp"
+
 #include "visitor/AstNodeVisitor.hpp"
+typedef PType::PType::PrimitiveTypeEnum Prim;
 
 BinaryOperatorNode::BinaryOperatorNode(const uint32_t line, const uint32_t col,
                                        Operator op, ExpressionNode *p_left,
@@ -17,4 +19,8 @@ void BinaryOperatorNode::accept(AstNodeVisitor &p_visitor) {
 void BinaryOperatorNode::visitChildNodes(AstNodeVisitor &p_visitor) {
     left->accept(p_visitor);
     right->accept(p_visitor);
+}
+
+const Operator &BinaryOperatorNode::getOperator() const {
+    return op;
 }

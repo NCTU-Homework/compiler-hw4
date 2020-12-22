@@ -1,4 +1,5 @@
 #include "AST/ConstantValue.hpp"
+
 #include "visitor/AstNodeVisitor.hpp"
 
 ConstantValueNode::ConstantValueNode(const uint32_t line, const uint32_t col,

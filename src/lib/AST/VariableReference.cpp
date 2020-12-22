@@ -25,3 +25,7 @@ void VariableReferenceNode::visitChildNodes(AstNodeVisitor &p_visitor) {
         index->accept(p_visitor);
     }
 }
+
+const Exprs& VariableReferenceNode::getArrayIndicies() const {
+    return indices;
+}

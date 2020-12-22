@@ -23,6 +23,7 @@ class ProgramNode : public AstNode {
 
     const char *getNameCString() const;
     const char *getTypeCString() const;
+    const PType& getType() const;
 
     void accept(AstNodeVisitor &p_visitor) override;
     void visitChildNodes(AstNodeVisitor &p_visitor) override;
