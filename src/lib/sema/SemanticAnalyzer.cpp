@@ -64,6 +64,7 @@ void SemanticAnalyzer::visit(VariableNode &p_variable) {
             result.push_back({p_variable.getLocation(),
                               msg});
             ok = 0;
+            break;
         }
     }
 
@@ -459,6 +460,8 @@ void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
      * 5. Pop the symbol table pushed at the 1st step.
      */
 
+    p_variable_ref.visitChildNodes(*this);
+
     // Checks if the variable is already defined
     if (!refer(p_variable_ref.getNameCString())) {
         std::string msg = "use of undeclared symbol '";
@@ -488,8 +491,6 @@ void SemanticAnalyzer::visit(VariableReferenceNode &p_variable_ref) {
         pushExpType({p_variable_ref.getLocation(), Prim::kUnknown, PE_VAR});
         return;
     }
-
-    p_variable_ref.visitChildNodes(*this);
 
     // Checks if array index is integer
     int arrayLen = p_variable_ref.getArrayIndicies().size();
