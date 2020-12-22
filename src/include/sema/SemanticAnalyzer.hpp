@@ -72,7 +72,7 @@ class SymbolTable {
     const std::vector<SymbolTableRow> &getContent() const;
     std::unordered_set<std::string> &getKeySet();
     const std::unordered_set<std::string> &getKeySet() const;
-    void print() const;
+    void display(std::string&) const;
 };
 
 struct SemanticError {
@@ -138,6 +138,8 @@ class SemanticAnalyzer : public AstNodeVisitor {
     const PType &currentProcedureType() const;
     void beginProcedure(const PType&);
     void endProcedure();
+    
+    void displayTables() const;
 
    private:
     std::vector<SymbolTable *> effectiveTableStack;
@@ -149,6 +151,7 @@ class SemanticAnalyzer : public AstNodeVisitor {
     p_symbol_kind currentScopeKind;
     int currentLevel = -1;
     int levelPreserved = 0;
+    std::string tableLog = "";
 };
 
 #endif

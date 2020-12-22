@@ -773,7 +773,7 @@ void SemanticAnalyzer::endScope() {
     SymbolTable *t = tableStack.back();
     if (t) {
         effectiveTableStack.pop_back();
-        t->print();
+        t->display(tableLog);
         delete t;
         currentLevel--;
     }
@@ -864,6 +864,10 @@ void SemanticAnalyzer::endProcedure() {
     procTypeStack.pop_back();
 }
 
+void SemanticAnalyzer::displayTables() const {
+    printf("%s", tableLog.c_str());
+}
+
 ExpressionTypeInfo SemanticAnalyzer::popExpType() {
     assert(!expTypeStack.empty());
     ExpressionTypeInfo ret = expTypeStack.back();
@@ -912,35 +916,44 @@ const char *ktoa(p_symbol_kind kind) {
     throw "我的室友是肥宅";
 }
 
-void dumpDemarcation(const char chr) {
+void dumpDemarcation(std::string &buff, const char chr) {
     for (size_t i = 0; i < 110; ++i) {
-        printf("%c", chr);
+        buff.push_back(chr);
     }
-    puts("");
+    buff.push_back('\n');
 }
 
-void SymbolTable::print() const {
-    dumpDemarcation('=');
-    printf("%-33s%-11s%-11s%-17s%-11s\n",
-           "Name",
-           "Kind",
-           "Level",
-           "Type",
-           "Attribute");
-    dumpDemarcation('-');
+void SymbolTable::display(std::string &buff) const {
+    char cbuff[65536];
+    dumpDemarcation(buff, '=');
+    sprintf(cbuff,
+            "%-33s%-11s%-11s%-17s%-11s\n",
+            "Name",
+            "Kind",
+            "Level",
+            "Type",
+            "Attribute");
+    buff += cbuff;
+    dumpDemarcation(buff, '-');
+
     for (const SymbolTableRow &row : rows) {
-        printf("%-33s", row.getName());
-        printf("%-11s", ktoa(row.getKind()));
+        sprintf(cbuff, "%-33s", row.getName());
+        buff += cbuff;
+        sprintf(cbuff, "%-11s", ktoa(row.getKind()));
+        buff += cbuff;
         if (row.getLevel()) {
-            printf("%d%-10s", row.getLevel(), "(local)");
+            sprintf(cbuff, "%d%-10s", row.getLevel(), "(local)");
         } else {
-            printf("%d%-10s", 0, "(global)");
+            sprintf(cbuff, "%d%-10s", 0, "(global)");
         }
-        printf("%-17s", row.getType().getPTypeCString());
-        printf("%-11s", row.getAttribute().getContentCString());
-        puts("");
+        buff += cbuff;
+        sprintf(cbuff, "%-17s", row.getType().getPTypeCString());
+        buff += cbuff;
+        sprintf(cbuff, "%-11s", row.getAttribute().getContentCString());
+        buff += cbuff;
+        buff.push_back('\n');
     }
-    dumpDemarcation('-');
+    dumpDemarcation(buff, '-');
 }
 
 SymbolTableRow::SymbolTableRow(const char *_name, p_symbol_kind _kind,

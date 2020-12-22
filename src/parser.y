@@ -43,6 +43,7 @@ extern uint32_t line_num;
 extern char buffer[512];
 extern FILE *yyin;
 extern char *yytext;
+extern int32_t opt_dmp;
 /* End */
 
 static AstNode *root;
@@ -786,13 +787,18 @@ int main(int argc, const char *argv[]) {
     SemanticAnalyzer analyzer;
     root->accept(analyzer);
 
+    if (opt_dmp) {
+        analyzer.displayTables();
+    }
+    
     const std::vector<SemanticError>& result = analyzer.result;
     if (result.empty()) {
         printf("\n"
             "|---------------------------------------------------|\n"
             "|  There is no syntactic error and semantic error!  |\n"
             "|---------------------------------------------------|\n");
-    } else {
+    } 
+    else {
         for (const SemanticError& e: result) {
             fprintf(stderr, "<Error> Found in line %u, column %u: %s\n", e.location.line, e.location.col, e.errorMsg.c_str());
             // TODO show contents
